@@ -1,0 +1,271 @@
+---
+title: "PNN/PV Regression/Main Effects Loop with Stats/Data"
+author: "Alissa Valentine and Kelsea Gildawie"
+output:
+  html_document:
+    df_print: paged
+  html_notebook: default
+  pdf_document: default
+---
+# Loop Notes:
+## - run the regressions with every behavioral measure (5) with every PNN/PV measure (7 each for PL and IL)
+## - Algorithm: [behavioral measure] ~ [centered PNN/PV measure] + Rearing + Housing (separately for males and females)
+## - a regression for each behavioral measure (time open, frequency to open, crossings, head pokes, and head poke duration) with each centered PNN/PV measure - the ones ending in "_c" - (PV count, PV intensity, PNN count, PNN intensity, PNN positive PV count, PNN positive PV intensity, PV positive PNN intensity) in the PL and IL
+## - 140 regressions (5 behavior measure, 7 PNN/PV measures, 2 regions, 2 sexes)
+
+# Loading library, saving dataset, exploring data
+```{r}
+# Loading library
+library(foreign)
+library(jtools)
+library(interactions)
+library(leaps)
+library(dplyr)
+# Saving SPSS file from my local computer (please update this address depending on where you save this file)
+dataset <- read.spss(file = "/Users/alissavalentine/EZM_PNN_Regressions_min.sav", to.data.frame=TRUE)
+# Reformating as a tibble
+dataset <- as_tibble(dataset)
+# checking out data values
+summary(dataset)
+```
+
+## Creating Male and Female datasets
+```{r}
+# Creating data set for males
+dataset_males <- dataset %>%
+  filter(dataset$'Sex' == "Male")
+# Creating data set for females
+dataset_females <- dataset %>%
+  filter(dataset$'Sex' == "Female")
+```
+
+# *Creating/Running Trial Multiple Regression Algorithm for Main Effects with Male Data*
+## Two graphs included that show differences in housing and rearing
+```{r}
+# Creating male linear model for DV = time open; IV = PV_count_c; no interaction terms
+maleslm_ME_timeopen_PVcountPLc <- lm(time_open ~ PV_count_PL_c + Rearing + Housing, data = dataset_males)
+# summary of linear model
+summary(maleslm_ME_timeopen_PVcountPLc)
+# running anova on the model
+anova(maleslm_ME_timeopen_PVcountPLc)
+# A pretty display of stats
+summ(maleslm_ME_timeopen_PVcountPLc)
+# Plotting interaction with original scatter plot points, lines based off Rearing condition, and confidence bands with 95%
+interact_plot(maleslm_ME_timeopen_PVcountPLc, pred = PV_count_PL_c, modx = Rearing, mod2 = Housing, plot.points = TRUE, interval = TRUE, int.width = 0.95)
+# Plotting the regression analysis
+plot(maleslm_ME_timeopen_PVcountPLc)
+```
+
+# *Creating/Running Trial Multiple Regression Algorithm for Main Effects with Female Data*
+## Two graphs included that show differences in housing and rearing
+```{r}
+# Creating female linear model for DV = time open; IV = PV_count_c; no interaction terms
+femaleslm_ME_timeopen_PVcountPLc <- lm(time_open ~ PV_count_PL_c + Rearing + Housing, data = dataset_females)
+# summary of linear model
+summary(femaleslm_ME_timeopen_PVcountPLc)
+# running anova on the model
+anova(femaleslm_ME_timeopen_PVcountPLc)
+# A pretty display of stats
+summ(femaleslm_ME_timeopen_PVcountPLc)
+# Plotting interaction with original scatter plot points, lines based off Rearing condition, and confidence bands with 95%
+interact_plot(femaleslm_ME_timeopen_PVcountPLc, pred = PV_count_PL_c, modx = Rearing, mod2 = Housing, plot.points = TRUE, interval = TRUE, int.width = 0.95)
+# Plotting the regression analysis
+plot(femaleslm_ME_timeopen_PVcountPLc)
+```
+
+# *Preparing Variables for Running Multiple Regression*
+
+## Creating new variables that hold the names of behavior and PNN/PV variables
+```{r}
+# Saving column names for the behavior variables into 'behavior' list
+behavior <- colnames(dataset_females[5:9])
+# Saving column names for the PNN/PV variables into 'PNNPV' list
+PNNPV <- colnames(dataset_females[10:23])
+```
+
+# *Running the Female Multiple Regression*
+
+```{r}
+# Female multiple regression loop using the following equation:
+# linear model = *behavior measure*  ~  *PNN/PV measure* + Rearing + Housing
+
+# This loop iterates through each behaviorial measure, running a mulitple linear regression with behavioral variable as DV, and each PNN/PV variable as the IV being iterated through the regression for each behavior variable (i.e. 5 behaviors x 14 PNN/PV variables = 70 regressions)
+for (i in 1:length(behavior)){ # iterate through each behavior
+  b <- behavior[i] # saving behavior variable name as 'b' for each iteration
+  assign((paste("femalelm_ME", b, sep = "_")), lapply(PNNPV, function(x){
+    lm(as.formula(paste(b," ~ ", x," + Rearing + Housing", sep = "")), data = dataset_females)})) # assigning the results from the multiple linear regression (where PNN/PV variables are iterating) to a list named 'femalelm' + name of behavioral measure
+}
+```
+
+# *Running the Male Multiple Regression*
+
+```{r}
+# Male multiple regression loop using the following equation:
+# linear model = *behavior measure*  ~  *PNN/PV measure* + Rearing + Housing
+
+# This loop iterates through each behaviorial measure, running a mulitple linear regression with behavioral variable as DV, and each PNN/PV variable as the IV being iterated through the regression for each behavior variable (i.e. 5 behaviors x 14 PNN/PV variables = 70 regressions)
+for (i in 1:length(behavior)){ # iterate through each behavior
+  b <- behavior[i] # saving behavior variable name as 'b' for each iteration
+  assign((paste("malelm_ME", b, sep = "_")), lapply(PNNPV, function(x){
+    lm(as.formula(paste(b," ~ ", x," + Rearing + Housing", sep = "")), data = dataset_males)})) # assigning the results from the multiple linear regression (where PNN/PV variables are iterating) to a list named 'malelm' + name of behavioral measure
+}
+```
+
+# *Accessing One Linear Model at a Time*
+
+# Key to female/male linear model lists:
+## [[1]] - PV_count_PL_c
+## [[2]] - PV_intensity_PL_c
+## [[3]] - PNN_count_PL_c
+## [[4]] - PNN_intensity_PL_c
+## [[5]] - PNN_pos_PV_count_PL_c
+## [[6]] - PNN_pos_PV_intensity_PL_c
+## [[7]] - PV_pos_PNN_intensity_PL_c
+## [[8]] - PV_count_IL_c
+## [[9]] - PV_intensity_IL_c
+## [[10]] - PNN_count_IL_c
+## [[11]] - PNN_intensity_IL_c
+## [[12]] - PNN_pos_PV_count_IL_c
+## [[13]] - PNN_pos_PV_intensity_IL_c
+## [[14]] - PV_pos_PNN_intensity_IL_c
+
+# Example: How to access one linear model
+# Using Female, Head Pokes, PV_pos_PNN_intensity_PL_c data below for example
+```{r}
+# This is returning the stats on DV: PV_pos_PNN_intensity_PL_c
+# Use key above to identify which variable you want to look at and replace '7' with that number (that will select the correct data frame from the list that holds the data you want)
+summary(femalelm_ME_head_pokes[[7]]) 
+summ(femalelm_ME_head_pokes[[7]])
+anova(femalelm_ME_head_pokes[[7]])
+plot(femalelm_ME_head_pokes[[7]])
+```
+
+# *Statistics for Female Subjects*
+
+# Female - Crossings
+```{r}
+# Returning summary, summ, and anova stats for every linear model in the femalelm_crossings list
+lapply(femalelm_ME_crossings, function(x){
+    print(summary(x))
+    print(summ(x))
+    print(anova(x))
+    plot(x)
+})
+```
+
+# Female - Frequency in the open
+```{r}
+# Returning summary, summ, and anova stats for every linear model in the femalelm_freq_open list
+lapply(femalelm_ME_freq_open, function(x){
+    print(summary(x))
+    print(summ(x))
+    print(anova(x))
+    plot(x)
+})
+```
+
+# Female - Head poke duration
+```{r}
+# Returning summary, summ, and anova stats for every linear model in the femalelm_head_poke_duration list
+lapply(femalelm_ME_head_poke_duration, function(x){
+    print(summary(x))
+    print(summ(x))
+    print(anova(x))
+    plot(x)
+})
+```
+
+# Female - Head pokes
+```{r}
+# Returning summary, summ, and anova stats for every linear model in the femalelm_head_pokes list
+lapply(femalelm_ME_head_pokes, function(x){
+    print(summary(x))
+    print(summ(x))
+    print(anova(x))
+    plot(x)
+})
+```
+
+# Female - Time in the open
+```{r}
+# Returning summary, summ, and anova stats for every linear model in the femalelm_time_open list
+lapply(femalelm_ME_time_open, function(x){
+    print(summary(x))
+    print(summ(x))
+    print(anova(x))
+    plot(x)
+})
+```
+
+# *Statistics for Male Subjects*
+
+# Male - Crossings
+```{r}
+# Returning summary, summ, and anova stats for every linear model in the malelm_crossings list
+lapply(malelm_ME_crossings, function(x){
+    print(summary(x))
+    print(summ(x))
+    print(anova(x))
+    plot(x)
+})
+```
+
+# Male - Frequency in the open
+```{r}
+# Returning summary, summ, and anova stats for every linear model in the malelm_freq_open list
+lapply(malelm_ME_freq_open, function(x){
+    print(summary(x))
+    print(summ(x))
+    print(anova(x))
+    plot(x)
+})
+```
+
+# Male - Head poke duration
+```{r}
+# Returning summary, summ, and anova stats for every linear model in the malelm_head_poke_duration list
+lapply(malelm_ME_head_poke_duration, function(x){
+    print(summary(x))
+    print(summ(x))
+    print(anova(x))
+    plot(x)
+})
+```
+
+# Male - Head pokes
+```{r}
+# Returning summary, summ, and anova stats for every linear model in the malelm_head_pokes list
+lapply(malelm_ME_head_pokes, function(x){
+    print(summary(x))
+    print(summ(x))
+    print(anova(x))
+    plot(x)
+})
+```
+
+# Male - Time in the open
+```{r}
+# Returning summary, summ, and anova stats for every linear model in the malelm_time_open list
+lapply(malelm_ME_time_open, function(x){
+    print(summary(x))
+    print(summ(x))
+    print(anova(x))
+    plot(x)
+})
+```
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
