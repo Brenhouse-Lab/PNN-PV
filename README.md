@@ -1,4 +1,4 @@
-# "EZM_PNN_Regressions_Loop"
+# "EZM_PNN_Regressions"
 
 ## Language: R
 ## Date: August 2020
